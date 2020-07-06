@@ -2,14 +2,16 @@
 
 import torch
 from torch.autograd import grad
-from pytorch_influence_functions.utils import display_progress
+from tqdm import tqdm
+import torch as ch
+import numpy as np
 
 
 def s_test(z_test, t_test, model, z_loader, gpu=-1, damp=0.01, scale=25.0,
            recursion_depth=5000):
     """s_test can be precomputed for each test point of interest, and then
     multiplied with grad_z to get the desired value for each training point.
-    Here, strochastic estimation is used to calculate s_test. s_test is the
+    Here, stochastic estimation is used to calculate s_test. s_test is the
     Inverse Hessian Vector Product.
 
     Arguments:
@@ -32,7 +34,8 @@ def s_test(z_test, t_test, model, z_loader, gpu=-1, damp=0.01, scale=25.0,
     # TODO: Dynamically set the recursion depth so that iterations stops
     # once h_estimate stabilises
     ################################
-    for i in range(recursion_depth):
+    iterator = tqdm(range(recursion_depth))
+    for i in iterator:
         # take just one random sample from training dataset
         # easiest way to just use the DataLoader once, break at the end of loop
         #########################
@@ -44,12 +47,16 @@ def s_test(z_test, t_test, model, z_loader, gpu=-1, damp=0.01, scale=25.0,
             y = model(x)
             loss = calc_loss(y, t)
             hv = hvp(loss, list(model.parameters()), h_estimate)
+
             # Recursively caclulate h_estimate
-            h_estimate = [
-                _v + (1 - damp) * _h_e - _hv / scale
-                for _v, _h_e, _hv in zip(v, h_estimate, hv)]
+            with ch.no_grad():
+                h_estimate = [
+                    _v + (1 - damp) * _h_e - _hv / scale
+                    for _v, _h_e, _hv in zip(v, h_estimate, hv)]
+            if np.nan in hv[-1]:
+                raise ValueError("NaN detected. Exiting! Sorry :(")
             break
-        display_progress("Calc. s_test recursions: ", i, recursion_depth)
+        iterator.set_description("Calc. s_test recursions")
     return h_estimate
 
 
@@ -124,7 +131,7 @@ def hvp(y, w, v):
     # Elementwise products
     elemwise_products = 0
     for grad_elem, v_elem in zip(first_grads, v):
-        elemwise_products += torch.sum(grad_elem * v_elem)
+        elemwise_products += torch.sum(grad_elem * v_elem.detach())
 
     # Second backprop
     return_grads = grad(elemwise_products, w, create_graph=True)

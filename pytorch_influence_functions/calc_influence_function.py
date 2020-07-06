@@ -410,7 +410,7 @@ def get_dataset_sample_ids(num_samples, test_loader, num_classes=None,
 
 
 def calc_img_wise(config, model, train_loader, test_loader):
-    """Calculates the influence function one test point at a time. Calcualtes
+    """Calculates the influence function one test point at a time. Calculates
     the `s_test` and `grad_z` values on the fly and discards them afterwards.
 
     Arguments:
