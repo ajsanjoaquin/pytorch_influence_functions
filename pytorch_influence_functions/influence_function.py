@@ -34,7 +34,7 @@ def s_test(z_test, t_test, model, z_loader, gpu=-1, damp=0.01, scale=25.0,
     # TODO: Dynamically set the recursion depth so that iterations stops
     # once h_estimate stabilises
     ################################
-    iterator = tqdm(range(recursion_depth))
+    iterator = tqdm(range(recursion_depth), desc="Calc. s_test recursions")
     for i in iterator:
         # take just one random sample from training dataset
         # easiest way to just use the DataLoader once, break at the end of loop
@@ -56,7 +56,6 @@ def s_test(z_test, t_test, model, z_loader, gpu=-1, damp=0.01, scale=25.0,
             if np.nan in hv[-1]:
                 raise ValueError("NaN detected. Exiting! Sorry :(")
             break
-        iterator.set_description("Calc. s_test recursions")
     return h_estimate
 
 
