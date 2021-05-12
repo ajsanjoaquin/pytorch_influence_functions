@@ -274,8 +274,9 @@ def calc_influence_function(train_dataset_size, grad_z_vecs=None,
 
     harmful = np.argsort(influences)
     helpful = harmful[::-1]
+    useless = np.argsort(np.absolute(influences))
 
-    return influences, harmful.tolist(), helpful.tolist()
+    return influences, harmful.tolist(), helpful.tolist(), useless.tolist()
 
 
 def calc_influence_single(model, train_loader, test_loader, test_id_num, gpu,
@@ -345,8 +346,10 @@ def calc_influence_single(model, train_loader, test_loader, test_id_num, gpu,
 
     harmful = np.argsort(influences)
     helpful = harmful[::-1]
+    # it should return minimum values. verify
+    useless = np.argsort(np.absolute(influences))
 
-    return influences, harmful.tolist(), helpful.tolist(), test_id_num
+    return influences, harmful.tolist(), helpful.tolist(), useless.tolist(), test_id_num
 
 
 def get_dataset_sample_ids_per_class(class_id, num_samples, test_loader,
@@ -466,7 +469,7 @@ def calc_img_wise(config, model, train_loader, test_loader):
             i = j
 
         start_time = time.time()
-        influence, harmful, helpful, _ = calc_influence_single(
+        influence, harmful, helpful, useless, _ = calc_influence_single(
             model, train_loader, test_loader, test_id_num=i, gpu=config['gpu'],
             recursion_depth=config['recursion_depth'], r=config['r_averaging'])
         end_time = time.time()
@@ -479,10 +482,11 @@ def calc_img_wise(config, model, train_loader, test_loader):
         influences[str(i)]['label'] = label
         influences[str(i)]['num_in_dataset'] = j
         influences[str(i)]['time_calc_influence_s'] = end_time - start_time
-        infl = [x.cpu().numpy().tolist() for x in influence]
+        infl = [x.cpu().numpy().tolist() for x in influence]  # for each test image, infl is a list
         influences[str(i)]['influence'] = infl
         influences[str(i)]['harmful'] = harmful[:500]
         influences[str(i)]['helpful'] = helpful[:500]
+        influences[str(i)]['useless'] = useless[:500]
 
         tmp_influences_path = outdir.joinpath(f"influence_results_tmp_"
                                               f"{test_start_index}_"
@@ -503,7 +507,7 @@ def calc_img_wise(config, model, train_loader, test_loader):
                                       f"{test_sample_num}.json")
     save_json(influences, influences_path)
 
-    return influences
+    return influences  # influences in JSON are unordered, so organize it later
 
 
 def calc_all_grad_then_test(config, model, train_loader, test_loader):
@@ -530,10 +534,11 @@ def calc_all_grad_then_test(config, model, train_loader, test_loader):
                 config['test_start_index'])
 
     train_dataset_len = len(train_loader.dataset)
-    influences, harmful, helpful = calc_influence_function(train_dataset_len)
+    influences, harmful, helpful, useless = calc_influence_function(train_dataset_len)
 
     influence_results['influences'] = influences
     influence_results['harmful'] = harmful
     influence_results['helpful'] = helpful
+    influence_results['useless'] = useless
     influences_path = outdir.joinpath("influence_results.json")
     save_json(influence_results, influences_path)
