@@ -2,15 +2,15 @@
 
 import torch
 from torch.autograd import grad
+from tqdm import tqdm
 import numpy as np
-from .utils import display_progress
 
 
 def s_test(z_test, t_test, model, z_loader, gpu=-1, damp=0.01, scale=25.0,
            recursion_depth=5000):
     """s_test can be precomputed for each test point of interest, and then
     multiplied with grad_z to get the desired value for each training point.
-    Here, strochastic estimation is used to calculate s_test. s_test is the
+    Here, stochastic estimation is used to calculate s_test. s_test is the
     Inverse Hessian Vector Product.
 
     Arguments:
@@ -33,7 +33,8 @@ def s_test(z_test, t_test, model, z_loader, gpu=-1, damp=0.01, scale=25.0,
     # TODO: Dynamically set the recursion depth so that iterations stops
     # once h_estimate stabilises
     ################################
-    for i in range(recursion_depth):
+    iterator = tqdm(range(recursion_depth), desc="Calc. s_test recursions")
+    for i in iterator:
         # take just one random sample from training dataset
         # easiest way to just use the DataLoader once, break at the end of loop
         #########################
@@ -44,8 +45,7 @@ def s_test(z_test, t_test, model, z_loader, gpu=-1, damp=0.01, scale=25.0,
                 x, t = x.cuda(), t.cuda()
             y = model(x)
             loss = calc_loss(y, t)
-            params = [ p for p in model.parameters() if p.requires_grad ]
-            hv = hvp(loss, params, h_estimate)
+            hv = hvp(loss, list(model.parameters()), h_estimate)
 
             # Recursively caclulate h_estimate
             with torch.no_grad():
@@ -55,7 +55,6 @@ def s_test(z_test, t_test, model, z_loader, gpu=-1, damp=0.01, scale=25.0,
             if np.nan in hv[-1]:
                 raise ValueError("NaN detected. Exiting! Sorry :(")
             break
-        display_progress("Calc. s_test recursions: ", i, recursion_depth)
     return h_estimate
 
 
@@ -99,8 +98,7 @@ def grad_z(z, t, model, gpu=-1):
     y = model(z)
     loss = calc_loss(y, t)
     # Compute sum of gradients from model parameters to loss
-    params = [ p for p in model.parameters() if p.requires_grad ]
-    return list(grad(loss, params, create_graph=True))
+    return list(grad(loss, list(model.parameters()), create_graph=True))
 
 
 def hvp(y, w, v):
