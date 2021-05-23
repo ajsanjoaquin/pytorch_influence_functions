@@ -281,7 +281,7 @@ def calc_influence_function(train_dataset_size, grad_z_vecs=None,
 
 def calc_influence_single(model, train_loader, test_loader, test_id_num, gpu,
                           recursion_depth, r, s_test_vec=None,
-                          time_logging=False):
+                          time_logging=False, grad_z_vecs=None):
     """Calculates the influences of all training data points on a single
     test dataset image.
 
@@ -300,6 +300,7 @@ def calc_influence_single(model, train_loader, test_loader, test_id_num, gpu,
             training dataset size.
         s_test_vec: list of torch tensor, contains s_test vectors. If left
             empty it will also be calculated
+        grad_z_vecs: list of precomputed vectors. If None, compute on the fly
 
     Returns:
         influence: list of float, influences of all training data samples
@@ -326,7 +327,11 @@ def calc_influence_single(model, train_loader, test_loader, test_id_num, gpu,
         t = train_loader.collate_fn([t])
         if time_logging:
             time_a = datetime.datetime.now()
-        grad_z_vec = grad_z(z, t, model, gpu=gpu)
+        # If precomputed available, use. Else, compute
+        if grad_z_vecs is None:
+            grad_z_vec = grad_z(z, t, model, gpu=gpu)
+        else:
+            grad_z_vec = grad_z_vecs[i]
         if time_logging:
             time_b = datetime.datetime.now()
             time_delta = time_b - time_a
