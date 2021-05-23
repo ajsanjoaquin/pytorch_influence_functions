@@ -2,6 +2,7 @@
 
 import torch
 from torch.autograd import grad
+import numpy as np
 from .utils import display_progress
 
 
@@ -45,10 +46,14 @@ def s_test(z_test, t_test, model, z_loader, gpu=-1, damp=0.01, scale=25.0,
             loss = calc_loss(y, t)
             params = [ p for p in model.parameters() if p.requires_grad ]
             hv = hvp(loss, params, h_estimate)
+
             # Recursively caclulate h_estimate
-            h_estimate = [
-                _v + (1 - damp) * _h_e - _hv / scale
-                for _v, _h_e, _hv in zip(v, h_estimate, hv)]
+            with torch.no_grad():
+                h_estimate = [
+                    _v + (1 - damp) * _h_e - _hv / scale
+                    for _v, _h_e, _hv in zip(v, h_estimate, hv)]
+            if np.nan in hv[-1]:
+                raise ValueError("NaN detected. Exiting! Sorry :(")
             break
         display_progress("Calc. s_test recursions: ", i, recursion_depth)
     return h_estimate
@@ -126,7 +131,7 @@ def hvp(y, w, v):
     # Elementwise products
     elemwise_products = 0
     for grad_elem, v_elem in zip(first_grads, v):
-        elemwise_products += torch.sum(grad_elem * v_elem)
+        elemwise_products += torch.sum(grad_elem * v_elem.detach())
 
     # Second backprop
     return_grads = grad(elemwise_products, w, create_graph=True)
