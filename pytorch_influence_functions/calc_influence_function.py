@@ -300,6 +300,14 @@ def calc_influence_single(model, train_loader, test_loader, test_id_num, gpu,
         test_id_num: int, the number of the test dataset point
             the influence was calculated for"""
 
+    if not s_test_vec:
+        z_test, t_test = test_loader.dataset[test_id_num]
+        z_test = test_loader.collate_fn([z_test])
+        t_test = test_loader.collate_fn([t_test])
+        s_test_vec = calc_s_test_single(model, z_test, t_test, train_loader,
+                                        gpu, recursion_depth=recursion_depth,
+                                        r=r)
+    
     # Calculate the influence function
     train_dataset_size = len(train_loader.dataset)
     influences = []
@@ -310,7 +318,7 @@ def calc_influence_single(model, train_loader, test_loader, test_id_num, gpu,
         if time_logging:
             time_a = datetime.datetime.now()
 
-        grad_z_vec = grad_z_vecs[i]
+        grad_z_vec = grad_z(z, t, model, gpu=gpu)
         if time_logging:
             time_b = datetime.datetime.now()
             time_delta = time_b - time_a
