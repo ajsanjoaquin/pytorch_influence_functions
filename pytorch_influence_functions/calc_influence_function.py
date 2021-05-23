@@ -8,8 +8,8 @@ import copy
 import logging
 
 from pathlib import Path
-from pytorch_influence_functions.influence_function import s_test, grad_z
-from pytorch_influence_functions.utils import save_json, display_progress
+from .influence_function import s_test, grad_z
+from .utils import save_json, display_progress
 
 
 def calc_s_test(model, test_loader, train_loader, save=False, gpu=-1,
@@ -441,13 +441,13 @@ def calc_img_wise(config, model, train_loader, test_loader):
         _, sample_list = get_dataset_sample_ids(test_sample_num, test_loader,
                                                 config['num_classes'],
                                                 test_start_index)
+        influences_meta['test_sample_index_list'] = sample_list
     else:
         test_dataset_iter_len = len(test_loader.dataset)
 
     # Set up logging and save the metadata conf file
     logging.info(f"Running on: {test_sample_num} images per class.")
     logging.info(f"Starting at img number: {test_start_index} per class.")
-    influences_meta['test_sample_index_list'] = sample_list
     influences_meta_fn = f"influences_results_meta_{test_start_index}-" \
                          f"{test_sample_num}.json"
     influences_meta_path = outdir.joinpath(influences_meta_fn)
