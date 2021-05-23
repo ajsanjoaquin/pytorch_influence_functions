@@ -8,8 +8,9 @@ import copy
 import logging
 
 from pathlib import Path
+from tqdm import tqdm
 from .influence_function import s_test, grad_z
-from .utils import save_json, display_progress
+from .utils import save_json
 
 
 def calc_s_test(model, test_loader, train_loader, save=False, gpu=-1,
@@ -45,7 +46,8 @@ def calc_s_test(model, test_loader, train_loader, save=False, gpu=-1,
         logging.info("ATTENTION: not saving s_test files.")
 
     s_tests = []
-    for i in range(start, len(test_loader.dataset)):
+    iterator = tqdm(range(start, len(test_loader.dataset)), desc="Calc. z_test (s_test):")
+    for i in iterator:
         z_test, t_test = test_loader.dataset[i]
         z_test = test_loader.collate_fn([z_test])
         t_test = test_loader.collate_fn([t_test])
@@ -60,8 +62,6 @@ def calc_s_test(model, test_loader, train_loader, save=False, gpu=-1,
                 save.joinpath(f"{i}_recdep{recursion_depth}_r{r}.s_test"))
         else:
             s_tests.append(s_test_vec)
-        display_progress(
-            "Calc. z_test (s_test): ", i-start, len(test_loader.dataset)-start)
 
     return s_tests, save
 
@@ -89,11 +89,10 @@ def calc_s_test_single(model, z_test, t_test, train_loader, gpu=-1,
     Returns:
         s_test_vec: torch tensor, contains s_test for a single test image"""
     s_test_vec_list = []
-    for i in range(r):
+    for i in tqdm(range(r), desc="Averaging r-times: "):
         s_test_vec_list.append(s_test(z_test, t_test, model, train_loader,
                                       gpu=gpu, damp=damp, scale=scale,
                                       recursion_depth=recursion_depth))
-        display_progress("Averaging r-times: ", i, r)
 
     ################################
     # TODO: Understand why the first[0] tensor is the largest with 1675 tensor
@@ -130,7 +129,7 @@ def calc_grad_z(model, train_loader, save_pth=False, gpu=-1, start=0):
         logging.info("ATTENTION: Not saving grad_z files!")
 
     grad_zs = []
-    for i in range(start, len(train_loader.dataset)):
+    for i in tqdm(range(start, len(train_loader.dataset)), desc="Calc. grad_z"):
         z, t = train_loader.dataset[i]
         z = train_loader.collate_fn([z])
         t = train_loader.collate_fn([t])
@@ -140,8 +139,6 @@ def calc_grad_z(model, train_loader, save_pth=False, gpu=-1, start=0):
             torch.save(grad_z_vec, save_pth.joinpath(f"{i}.grad_z"))
         else:
             grad_zs.append(grad_z_vec)
-        display_progress(
-            "Calc. grad_z: ", i-start, len(train_loader.dataset)-start)
 
     return grad_zs, save_pth
 
@@ -177,10 +174,9 @@ def load_s_test(s_test_dir=Path("./s_test/"), s_test_id=0, r_sample_size=10,
     ########################
     # TODO: should prob. not hardcode the file name, use natsort+glob
     ########################
-    for i in range(num_s_test_files):
+    for i in tqdm(range(num_s_test_files), desc="s_test files loaded"):
         s_test.append(
             torch.load(s_test_dir / str(s_test_id) + f"_{i}.s_test"))
-        display_progress("s_test files loaded: ", i, r_sample_size)
 
     #########################
     # TODO: figure out/change why here element 0 is chosen by default
@@ -222,9 +218,8 @@ def load_grad_z(grad_z_dir=Path("./grad_z/"), train_dataset_size=-1):
                      " the dataset size")
         if -1 == train_dataset_size:
             train_dataset_size = available_grad_z_files
-    for i in range(train_dataset_size):
+    for i in tqdm(range(train_dataset_size), desc="grad_z files loaded"):
         grad_z_vecs.append(torch.load(grad_z_dir / str(i) + ".grad_z"))
-        display_progress("grad_z files loaded: ", i, train_dataset_size)
 
     return grad_z_vecs
 
@@ -254,7 +249,7 @@ def calc_influence_function(train_dataset_size, grad_z_vecs=None,
         train_dataset_size = len(grad_z_vecs)
 
     influences = []
-    for i in range(train_dataset_size):
+    for i in tqdm(range(train_dataset_size), desc="Calc. influence function:"):
         tmp_influence = -sum(
             [
                 ###################################
@@ -270,7 +265,6 @@ def calc_influence_function(train_dataset_size, grad_z_vecs=None,
                 ###################################
             ]) / train_dataset_size
         influences.append(tmp_influence)
-        display_progress("Calc. influence function: ", i, train_dataset_size)
 
     harmful = np.argsort(influences)
     helpful = harmful[::-1]
@@ -279,7 +273,7 @@ def calc_influence_function(train_dataset_size, grad_z_vecs=None,
     return influences, harmful.tolist(), helpful.tolist(), useless.tolist()
 
 
-def calc_influence_single(model, train_loader, test_loader, test_id_num, gpu,
+def calc_influence_single(model, train_loader, gpu,
                           recursion_depth, r, s_test_vec=None,
                           time_logging=False, grad_z_vecs=None):
     """Calculates the influences of all training data points on a single
@@ -288,9 +282,6 @@ def calc_influence_single(model, train_loader, test_loader, test_id_num, gpu,
     Arugments:
         model: pytorch model
         train_loader: DataLoader, loads the training dataset
-        test_loader: DataLoader, loads the test dataset
-        test_id_num: int, id of the test sample for which to calculate the
-            influence function
         gpu: int, identifies the gpu id, -1 for cpu
         recursion_depth: int, number of recursions to perform during s_test
             calculation, increases accuracy. r*recursion_depth should equal the
@@ -309,19 +300,11 @@ def calc_influence_single(model, train_loader, test_loader, test_id_num, gpu,
         helpful: list of float, influences sorted by helpfulness
         test_id_num: int, the number of the test dataset point
             the influence was calculated for"""
-    # Calculate s_test vectors if not provided
-    if not s_test_vec:
-        z_test, t_test = test_loader.dataset[test_id_num]
-        z_test = test_loader.collate_fn([z_test])
-        t_test = test_loader.collate_fn([t_test])
-        s_test_vec = calc_s_test_single(model, z_test, t_test, train_loader,
-                                        gpu, recursion_depth=recursion_depth,
-                                        r=r)
 
     # Calculate the influence function
     train_dataset_size = len(train_loader.dataset)
     influences = []
-    for i in range(train_dataset_size):
+    for i in tqdm(range(train_dataset_size), desc="Calc. influence function:"):
         z, t = train_loader.dataset[i]
         z = train_loader.collate_fn([z])
         t = train_loader.collate_fn([t])
@@ -347,7 +330,6 @@ def calc_influence_single(model, train_loader, test_loader, test_id_num, gpu,
                 for k, j in zip(grad_z_vec, s_test_vec)
             ]) / train_dataset_size
         influences.append(tmp_influence)
-        display_progress("Calc. influence function: ", i, train_dataset_size)
 
     harmful = np.argsort(influences)
     helpful = harmful[::-1]
@@ -426,7 +408,7 @@ def get_dataset_sample_ids(num_samples, test_loader, num_classes=None,
 
 
 def calc_img_wise(config, model, train_loader, test_loader):
-    """Calculates the influence function one test point at a time. Calcualtes
+    """Calculates the influence function one test point at a time. Calculates
     the `s_test` and `grad_z` values on the fly and discards them afterwards.
 
     Arguments:
@@ -461,7 +443,7 @@ def calc_img_wise(config, model, train_loader, test_loader):
     influences = {}
     # Main loop for calculating the influence function one test sample per
     # iteration.
-    for j in range(test_dataset_iter_len):
+    for j in tqdm(range(test_dataset_iter_len), desc="Test samples processed"):
         # If we calculate evenly per class, choose the test img indicies
         # from the sample_list instead
         if test_sample_num and test_start_index:
@@ -498,7 +480,6 @@ def calc_img_wise(config, model, train_loader, test_loader):
                                               f"{test_sample_num}"
                                               f"_last-i_{i}.json")
         save_json(influences, tmp_influences_path)
-        display_progress("Test samples processed: ", j, test_dataset_iter_len)
 
     logging.info(f"The results for this run are:")
     logging.info("Influences: ")
