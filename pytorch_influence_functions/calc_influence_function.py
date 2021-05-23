@@ -273,7 +273,7 @@ def calc_influence_function(train_dataset_size, grad_z_vecs=None,
     return influences, harmful.tolist(), helpful.tolist(), useless.tolist()
 
 
-def calc_influence_single((model, train_loader, test_loader, test_id_num, gpu,
+def calc_influence_single(model, train_loader, test_loader, test_id_num, gpu,
                           recursion_depth, r, s_test_vec=None,
                           time_logging=False):
     """Calculates the influences of all training data points on a single
@@ -309,7 +309,7 @@ def calc_influence_single((model, train_loader, test_loader, test_id_num, gpu,
         t = train_loader.collate_fn([t])
         if time_logging:
             time_a = datetime.datetime.now()
-            
+
         grad_z_vec = grad_z_vecs[i]
         if time_logging:
             time_b = datetime.datetime.now()
