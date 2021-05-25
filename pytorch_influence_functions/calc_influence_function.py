@@ -258,7 +258,7 @@ def calc_influence_function(train_dataset_size, grad_z_vecs=None,
                 ###################################
                 torch.sum(k * j).data.cpu().numpy()
                 for k, j in zip(grad_z_vecs[i], e_s_test)
-                ###################################
+                ###################################influences = influences.cpu().numpy()
                 # Originally with [i] because each grad_z contained
                 # a list of tensors as long as e_s_test list
                 # There is one grad_z per training data sample
@@ -266,7 +266,7 @@ def calc_influence_function(train_dataset_size, grad_z_vecs=None,
             ]) / train_dataset_size
         influences.append(tmp_influence)
     
-    influences = influences.data.cpu().numpy()
+    
     harmful = np.argsort(influences)
     helpful = harmful[::-1]
     useless = np.argsort(np.absolute(influences))
@@ -336,7 +336,7 @@ def calc_influence_single(model, train_loader, test_loader, test_id_num, gpu,
             ]) / train_dataset_size
         influences.append(tmp_influence)
 
-    influences = influences.data.cpu().numpy()
+    influences = influences.cpu().numpy()
     harmful = np.argsort(influences)
     helpful = harmful[::-1]
     # it should return minimum values. verify
