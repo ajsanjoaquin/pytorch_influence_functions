@@ -8,7 +8,7 @@ import copy
 import logging
 
 from pathlib import Path
-from tqdm import tqdm
+from tqdm.notebook import tqdm
 from .influence_function import s_test, grad_z
 from .utils import save_json
 
