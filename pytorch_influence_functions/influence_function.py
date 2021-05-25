@@ -2,7 +2,7 @@
 
 import torch
 from torch.autograd import grad
-from tqdm import tqdm
+from tqdm.notebook import tqdm
 import numpy as np
 
 
