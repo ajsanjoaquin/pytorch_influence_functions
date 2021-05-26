@@ -1,6 +1,7 @@
 #! /usr/bin/env python3
 
 import torch
+import torch.nn.functional as F
 from torch.autograd import grad
 from tqdm.notebook import tqdm
 import numpy as np
@@ -67,13 +68,7 @@ def calc_loss(y, t):
 
     Returns:
         loss: scalar, the loss"""
-    ####################
-    # if dim == [0, 1, 3] then dim=0; else dim=1
-    ####################
-    # y = torch.nn.functional.log_softmax(y, dim=0)
-    y = torch.nn.functional.log_softmax(y)
-    loss = torch.nn.functional.nll_loss(
-        y, t, weight=None, reduction='mean')
+    loss = F.CrossEntropyLoss(y, t, weight=None, reduction="mean")
     return loss
 
 
