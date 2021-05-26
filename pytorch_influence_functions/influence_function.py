@@ -1,7 +1,7 @@
 #! /usr/bin/env python3
 
 import torch
-import torch.nn.functional as F
+from torch.nn import CrossEntropyLoss
 from torch.autograd import grad
 from tqdm.notebook import tqdm
 import numpy as np
@@ -68,7 +68,7 @@ def calc_loss(y, t):
 
     Returns:
         loss: scalar, the loss"""
-    loss = F.CrossEntropyLoss(y, t, weight=None, reduction="mean")
+    loss = CrossEntropyLoss(y, t, weight=None, reduction="mean")
     return loss
 
 
