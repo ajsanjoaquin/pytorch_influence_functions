@@ -475,8 +475,8 @@ def calc_img_wise(config, model, train_loader, test_loader):
         influences[str(i)]['num_in_dataset'] = j
         influences[str(i)]['time_calc_influence_s'] = end_time - start_time
 
-        assert np.nan not in influence, "NAN detected!"
         infl = [x.cpu().numpy().tolist() for x in influence]  # for each test image, infl is a list
+        assert np.nan not in infl, "NAN detected!"
         influences[str(i)]['influence'] = infl
         influences[str(i)]['harmful'] = harmful[:500]
         influences[str(i)]['helpful'] = helpful[:500]
