@@ -474,6 +474,8 @@ def calc_img_wise(config, model, train_loader, test_loader):
         influences[str(i)]['label'] = label
         influences[str(i)]['num_in_dataset'] = j
         influences[str(i)]['time_calc_influence_s'] = end_time - start_time
+
+        assert np.nan not in influence, "NAN detected!"
         infl = [x.cpu().numpy().tolist() for x in influence]  # for each test image, infl is a list
         influences[str(i)]['influence'] = infl
         influences[str(i)]['harmful'] = harmful[:500]
@@ -527,6 +529,7 @@ def calc_all_grad_then_test(config, model, train_loader, test_loader):
     train_dataset_len = len(train_loader.dataset)
     influences, harmful, helpful, useless = calc_influence_function(train_dataset_len)
 
+    assert np.nan not in influences, "NAN detected!"
     influence_results['influences'] = influences
     influence_results['harmful'] = harmful
     influence_results['helpful'] = helpful
