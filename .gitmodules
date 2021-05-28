@@ -1,0 +1,3 @@
+[submodule "tests/leave_one_test"]
+	path = tests/leave_one_test
+	url = https://github.com/ryokamoi/influence_function_with_lissa.git

@@ -1,3 +1,7 @@
+*.npy
+*.png
+*/data/
+
 *.pyc
 outdir/*
 data/*
@@ -6,10 +10,11 @@ build/
 dist/
 bin/
 lib/
-.mypy_cache/*
 lib64
 logfile.log
 pytorch_influence_functions.egg-info/
 pyvenv.cfg
 .vscode/
 .idea/
+/.python-version
+/pytorch_influence_functions/test_influence_functions/lightning_logs/
