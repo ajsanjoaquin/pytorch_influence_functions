@@ -14,14 +14,9 @@ The reference implementation can be found here: [link](https://github.com/kohpan
     - [Calculation parameters](#calculation-parameters)
       - [s_test](#stest)
   - [Modes of computation](#modes-of-computation)
-  - [Output variables](#output-variables)
     - [Influences](#influences)
     - [Harmful](#harmful)
     - [Helpful](#helpful)
-- [Roadmap](#roadmap)
-  - [v0.2](#v02)
-  - [v0.3](#v03)
-  - [v0.4](#v04)
 
 ## Why Use Influence Functions?
 
