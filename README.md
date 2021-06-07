@@ -170,23 +170,6 @@ kept in RAM than calculating them on-the-fly.
 fast SSD, lots of free storage space, and want to calculate the influences on
 the prediction outcomes of an entire dataset or even >1000 test samples.
 
-### Output variables
-
-Visualised, the output can look like this:
-
-![influences for ship on cifar10-resnet](figs/inf_resnet_basic_110_ship_1.png)
-
-The test image on the top left is test image for which the influences were
-calculated. To get the correct test outcome of _ship_, the Helpful images from
-the training dataset were the most helpful, whereas the Harmful images were the
-most harmful. Here, we used CIFAR-10 as dataset. The model was ResNet-110. The
-numbers above the images show the actual influence value which was calculated.
-
-The next figure shows the same but for a different model, DenseNet-100/12.
-Thus, we can see that different models learn more from different images.
-
-![influences for ship on cifar10-densenet](figs/inf_densenet_BC_100_12_ship_1.png)
-
 #### Influences
 
 Is a dict/json containting the influences calculated of all training data
@@ -241,31 +224,3 @@ Helpful is a list of numbers, which are the IDs of the training data samples
 ordered by helpfulness. If the influence function is calculated for multiple
 test images, the helpfulness is ordered by average helpfulness to the
 prediction outcome of the processed test samples.
-
-## Roadmap
-
-### v0.2
-
-* [x] makes variable names etc. dataset independent
-* [x] remove all dataset name checks from the code
-* [ ] ability to disable shell output eg for `display_progress` from the config
-* [ ] add proper result plotting support
-* [ ] add a dataloader for training on the most influential samples only
-* [x] add some visualisation of the outcome
-* [ ] add recreation of some graphs of the original paper to verify
-  implementation
-* [ ] allow custom save name for the influence json
-
-### v0.3
-
-* [ ] make the config a class, so that it can readjust itself, for example
-  when the `r` and `recursion_depth` values can be lowered without big impact
-* [ ] check killing data augmentation!?
-* [ ] in `calc_influence_function.py` in `load_s_test`, `load_grad_z` don't
-  hard code the filenames
-
-### v0.4
-
-* [ ] integrate myPy type annotations (static type checking)
-* [ ] Use multiprocessing to calc the influence
-* [ ] use `r"doc"` docstrings like pytorch
