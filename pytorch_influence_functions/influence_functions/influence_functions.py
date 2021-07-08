@@ -261,7 +261,6 @@ def calc_influence_function(train_dataset_size, grad_z_vecs=None, e_s_test=None)
 
     return influences, harmful.tolist(), helpful.tolist()
 
-
 def calc_influence_single(
     model,
     train_loader,
@@ -275,7 +274,7 @@ def calc_influence_single(
     s_test_vec=None,
     time_logging=False,
     loss_func="cross_entropy",
-):
+    single=False):
     """Calculates the influences of all training data points on a single
     test dataset image.
 
@@ -354,6 +353,10 @@ def calc_influence_single(
                 / train_dataset_size
             )
 
+        if single:
+            assert train_dataset_size == 1, 'Error: train size is {}, but single is enabled'.format(train_dataset_size)
+            return tmp_influence.cpu()
+
         influences.append(tmp_influence.cpu())
 
     harmful = np.argsort(influences)
@@ -421,7 +424,7 @@ def get_dataset_sample_ids(num_samples, test_loader, num_classes=None, start_ind
 
 
 def calc_img_wise(config, model, train_loader, test_loader, loss_func="cross_entropy"):
-    """Calculates the influence function one test point at a time. Calcualtes
+    """Calculates the influence function one test point at a time. Calculates
     the `s_test` and `grad_z` values on the fly and discards them afterwards.
 
     Arguments:
