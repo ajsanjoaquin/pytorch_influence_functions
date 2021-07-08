@@ -355,9 +355,9 @@ def calc_influence_single(
 
         if single:
             assert train_dataset_size == 1, 'Error: train size is {}, but single is enabled'.format(train_dataset_size)
-            return tmp_influence.cpu()
+            return tmp_influence.cpu().item()
 
-        influences.append(tmp_influence.cpu())
+        influences.append(tmp_influence.cpu().item())
 
     harmful = np.argsort(influences)
     helpful = harmful[::-1]
