@@ -357,9 +357,9 @@ def calc_influence_single(
             assert train_dataset_size == 1, 'Error: train size is {}, but single is enabled'.format(train_dataset_size)
             return tmp_influence.cpu().item()
 
-        influences.append(tmp_influence)
+        influences.append(tmp_influence.cpu())
 
-    harmful = np.argsort(influences.cpu().numpy())
+    harmful = np.argsort(influences)
     helpful = harmful[::-1]
 
     return influences, harmful.tolist(), helpful.tolist(), test_id_num
@@ -495,7 +495,7 @@ def calc_img_wise(config, model, train_loader, test_loader, loss_func="cross_ent
         influences[str(i)]["label"] = label
         influences[str(i)]["num_in_dataset"] = j
         influences[str(i)]["time_calc_influence_s"] = end_time - start_time
-        infl = [x.tolist() for x in influence]
+        infl = [x.cpu().numpy().tolist() for x in influence]
         influences[str(i)]["influence"] = infl
         influences[str(i)]["harmful"] = harmful[:500]
         influences[str(i)]["helpful"] = helpful[:500]
