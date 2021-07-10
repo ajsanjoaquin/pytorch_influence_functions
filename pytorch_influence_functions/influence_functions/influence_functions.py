@@ -359,7 +359,7 @@ def calc_influence_single(
 
         influences.append(tmp_influence)
 
-    harmful = np.argsort(influences)
+    harmful = np.argsort(influences.cpu().numpy())
     helpful = harmful[::-1]
 
     return influences, harmful.tolist(), helpful.tolist(), test_id_num
@@ -495,7 +495,7 @@ def calc_img_wise(config, model, train_loader, test_loader, loss_func="cross_ent
         influences[str(i)]["label"] = label
         influences[str(i)]["num_in_dataset"] = j
         influences[str(i)]["time_calc_influence_s"] = end_time - start_time
-        infl = [x.cpu().numpy().tolist() for x in influence]
+        infl = [x.tolist() for x in influence]
         influences[str(i)]["influence"] = infl
         influences[str(i)]["harmful"] = harmful[:500]
         influences[str(i)]["helpful"] = helpful[:500]
