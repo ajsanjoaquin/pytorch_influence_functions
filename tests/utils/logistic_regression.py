@@ -14,8 +14,9 @@ from .dummy_dataset import (
 
 
 class LogisticRegression(LightningModule):
-    def __init__(self, n_classes=2, n_features=20, idx_to_remove=None):
+    def __init__(self, n_classes=2, n_features=20, idx_to_remove=None, wd=0.):
         super().__init__()
+        self.wd = wd
         self.training_set = DummyDataset(n_classes=n_classes, n_features=n_features)
 
         if idx_to_remove is not None:
@@ -47,7 +48,7 @@ class LogisticRegression(LightningModule):
         else:
             f = F.cross_entropy
 
-        return f(logits, labels)
+        return f(logits, labels) + torch.sum(self.linear.weight*self.linear.weight) * self.wd / 2
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=1e-4, weight_decay=1e-4)
@@ -60,9 +61,9 @@ class LogisticRegression(LightningModule):
         tensorboard_logs = {"train_loss": loss}
         return {"loss": loss, "log": tensorboard_logs}
 
-    def train_dataloader(self, batch_size=32) -> DataLoader:
+    def train_dataloader(self, batch_size=32, shuffle=True) -> DataLoader:
         return DataLoader(
-            self.training_set, batch_size=batch_size, shuffle=True, num_workers=4
+            self.training_set, batch_size=batch_size, shuffle=shuffle, num_workers=4
         )
 
     def validation_step(self, val_batch, batch_idx):
