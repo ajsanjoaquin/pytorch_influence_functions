@@ -236,7 +236,7 @@ def calc_influence_function(train_dataset_size, grad_z_vecs=None, e_s_test=None)
     influences = []
     for i in range(train_dataset_size):
         tmp_influence = (
-            -sum(
+            sum(
                 [
                     ###################################
                     # TODO: verify if computation really needs to be done
@@ -340,7 +340,7 @@ def calc_influence_single(
             )
         with torch.no_grad():
             tmp_influence = (
-                -sum(
+                sum(
                     [
                         ####################
                         # TODO: potential bottle neck, takes 17% execution time
