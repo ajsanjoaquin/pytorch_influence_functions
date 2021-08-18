@@ -15,12 +15,12 @@ from pytorch_influence_functions.influence_functions.utils import (
 )
 
 
-def s_test_cg(x_test, y_test, model, train_loader, damp, gpu=-1, verbose=True, loss_func="cross_entropy"):
+def s_test_cg(x_test, y_test, model, train_loader, damp, gpu=-1, verbose=True):
 
     if gpu >= 0:
         x_test, y_test = x_test.cuda(), y_test.cuda()
 
-    v_flat = parameters_to_vector(grad_z(x_test, y_test, model, gpu, loss_func=loss_func))
+    v_flat = parameters_to_vector(grad_z(x_test, y_test, model, gpu))
 
     def hvp_fn(x):
 
@@ -44,7 +44,7 @@ def s_test_cg(x_test, y_test, model, train_loader, damp, gpu=-1, verbose=True, l
                 split_params = tensor_to_tuple(flat_params_, params)
                 load_weights(model, names, split_params)
                 out = model(x_train)
-                loss = calc_loss(out, y_train)
+                loss = model.loss(out, y_train)
                 return loss
 
             batch_hvp = vhp(f, flat_params, x_tensor, strict=True)[1]
@@ -79,7 +79,7 @@ def s_test_cg(x_test, y_test, model, train_loader, damp, gpu=-1, verbose=True, l
     return result
 
 
-def s_test(x_test, y_test, model, i, samples_loader, gpu=-1, damp=0.01, scale=25.0, loss_func="cross_entropy"):
+def s_test(x_test, y_test, model, i, samples_loader, gpu=-1, damp=0.01, scale=25.0):
     """s_test can be precomputed for each test point of interest, and then
     multiplied with grad_z to get the desired value for each training point.
     Here, stochastic estimation is used to calculate s_test. s_test is the
@@ -98,7 +98,7 @@ def s_test(x_test, y_test, model, i, samples_loader, gpu=-1, damp=0.01, scale=25
     Returns:
         h_estimate: list of torch tensors, s_test"""
 
-    v = grad_z(x_test, y_test, model, gpu, loss_func=loss_func)
+    v = grad_z(x_test, y_test, model, gpu)
     h_estimate = v
 
     params, names = make_functional(model)
@@ -115,7 +115,7 @@ def s_test(x_test, y_test, model, i, samples_loader, gpu=-1, damp=0.01, scale=25
         def f(*new_params):
             load_weights(model, names, new_params)
             out = model(x_train)
-            loss = calc_loss(out, y_train, loss_func=loss_func)
+            loss = model.loss(out, y_train)
             return loss
 
         hv = vhp(f, params, tuple(h_estimate), strict=True)[1]
@@ -137,31 +137,7 @@ def s_test(x_test, y_test, model, i, samples_loader, gpu=-1, damp=0.01, scale=25
     return h_estimate
 
 
-def calc_loss(logits, labels, loss_func="cross_entropy"):
-    """Calculates the loss
-
-    Arguments:
-        logits: torch tensor, input with size (minibatch, nr_of_classes)
-        labels: torch tensor, target expected by loss of size (0 to nr_of_classes-1)
-        loss_func: str, specify loss function name
-
-    Returns:
-        loss: scalar, the loss"""
-    
-    if loss_func == "cross_entropy":
-        if logits.shape[-1] == 1:
-            loss = F.binary_cross_entropy_with_logits(logits, labels.type(torch.float))
-        else:
-            loss = F.cross_entropy(logits, labels, weight=None, reduction="mean")
-    elif loss_func == "mean":
-        loss = torch.mean(logits)
-    else:
-        raise ValueError("{} is not a valid value for loss_func".format(loss_func))
-
-    return loss
-
-
-def grad_z(x, y, model, gpu=-1, loss_func="cross_entropy"):
+def grad_z(x, y, model, gpu=-1):
     """Calculates the gradient z. One grad_z should be computed for each
     training sample.
 
@@ -183,7 +159,7 @@ def grad_z(x, y, model, gpu=-1, loss_func="cross_entropy"):
 
     prediction = model(x)
 
-    loss = calc_loss(prediction, y, loss_func=loss_func)
+    loss = model.loss(prediction, y)
 
     # Compute sum of gradients from model parameters to loss
     return grad(loss, model.parameters())
@@ -198,8 +174,7 @@ def s_test_sample(
     damp=0.01,
     scale=25,
     recursion_depth=5000,
-    r=1,
-    loss_func="cross_entropy",
+    r=1
 ):
     """Calculates s_test for a single test image taking into account the whole
     training dataset. s_test = invHessian * nabla(Loss(test_img, model params))
@@ -238,7 +213,7 @@ def s_test_sample(
         )
 
         cur_estimate = s_test(
-            x_test, y_test, model, i, hessian_loader, gpu=gpu, damp=damp, scale=scale, loss_func=loss_func,
+            x_test, y_test, model, i, hessian_loader, gpu=gpu, damp=damp, scale=scale
         )
 
         with torch.no_grad():
