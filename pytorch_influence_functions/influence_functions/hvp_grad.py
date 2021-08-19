@@ -1,6 +1,5 @@
 #! /usr/bin/env python3
 import torch
-import torch.nn.functional as F
 from torch.nn.utils import parameters_to_vector
 from torch.autograd import grad
 from torch.autograd.functional import vhp
@@ -206,9 +205,9 @@ def s_test_sample(
         hessian_loader = DataLoader(
             train_loader.dataset,
             sampler=torch.utils.data.RandomSampler(
-                train_loader.dataset, True, num_samples=recursion_depth
+                train_loader.dataset, True, num_samples=recursion_depth * train_loader.batch_size
             ),
-            batch_size=1,
+            batch_size=train_loader.batch_size,
             num_workers=4,
         )
 

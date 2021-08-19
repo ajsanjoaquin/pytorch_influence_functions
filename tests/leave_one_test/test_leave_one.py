@@ -97,7 +97,8 @@ class TestLeaveOneOut(TestCase):
         test_loss_ori = torch_model.loss(torch_model(x_test_input), y_test_input, train=False).detach().cpu().numpy()
 
         # Predict how high the loss diff on x_test should be
-        loss_diff_approx, _, _, _, = calc_influence_single(torch_model, train_loader, test_loader, test_id_num=0, gpu=1,
+        loss_diff_approx, _, _ = calc_influence_single(torch_model, train_loader, train_loader,
+                                    x_test_input, y_test_input, gpu=1,
                                     recursion_depth=RECURSION_DEPTH, r=R, damp=0, scale=SCALE)
         loss_diff_approx = torch.FloatTensor(loss_diff_approx).cpu().numpy()
 

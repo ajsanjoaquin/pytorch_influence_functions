@@ -74,9 +74,10 @@ trainloader, testloader = get_my_dataloaders()
 ptif.init_logging()
 config = ptif.get_default_config()
 
+# Calculate for one test point per class which training points influenced them
 influences, harmful, helpful = ptif.calc_img_wise(config, model, trainloader, testloader)
 
-# do someting with influences/harmful/helpful
+# Results are saved in the outdir as json
 ```
 
 Here, `config` contains default values for the influence function calculation
