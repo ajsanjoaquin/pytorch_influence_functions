@@ -236,7 +236,7 @@ def calc_influence_function(train_dataset_size, grad_z_vecs=None, e_s_test=None)
     influences = []
     for i in range(train_dataset_size):
         tmp_influence = (
-            -sum(
+            sum(
                 [
                     ###################################
                     # TODO: verify if computation really needs to be done
@@ -264,8 +264,9 @@ def calc_influence_function(train_dataset_size, grad_z_vecs=None, e_s_test=None)
 def calc_influence_single(
     model,
     train_loader,
-    test_loader,
-    test_id_num,
+    target_loader,
+    x_infl,
+    y_infl,
     gpu,
     recursion_depth,
     r,
@@ -273,17 +274,15 @@ def calc_influence_single(
     scale=25,
     s_test_vec=None,
     time_logging=False,
-    loss_func="cross_entropy",
     single=False):
-    """Calculates the influences of all training data points on a single
-    test dataset image.
+    """Calculates the influences of (x_infl, y_infl) towards all points in the target_loader
 
     Arugments:
         model: pytorch model
-        train_loader: DataLoader, loads the training dataset
-        test_loader: DataLoader, loads the test dataset
-        test_id_num: int, id of the test sample for which to calculate the
-            influence function
+        train_loader: DataLoader, loads the dataset used to approximate Hessians (usually train dataset)
+        target_loader: DataLoader, loads the test dataset of points to calculate influence towards
+        x_infl: Tensor, x-values of the tensor to calculate influence from
+        y_infl: Tensor, y-values of the tensor to calculate influence from
         gpu: int, identifies the gpu id, -1 for cpu
         recursion_depth: int, number of recursions to perform during s_test
             calculation, increases accuracy. r*recursion_depth should equal the
@@ -303,34 +302,31 @@ def calc_influence_single(
             the influence was calculated for"""
     # Calculate s_test vectors if not provided
     if s_test_vec is None:
-        z_test, t_test = test_loader.dataset[test_id_num]
-        z_test = test_loader.collate_fn([z_test])
-        t_test = test_loader.collate_fn([t_test])
         s_test_vec = s_test_sample(
             model,
-            z_test,
-            t_test,
+            x_infl,
+            y_infl,
             train_loader,
             gpu,
             recursion_depth=recursion_depth,
             r=r,
             damp=damp,
-            scale=scale,
-            loss_func=loss_func,
+            scale=scale
         )
 
     # Calculate the influence function
     train_dataset_size = len(train_loader.dataset)
+    target_dataset_size = len(target_loader.dataset)
     influences = []
-    for i in tqdm(range(train_dataset_size)):
-        z, t = train_loader.dataset[i]
-        z = train_loader.collate_fn([z])
-        t = train_loader.collate_fn([t])
+    for i in tqdm(range(target_dataset_size)):
+        x, y = target_loader.dataset[i]
+        x = target_loader.collate_fn([x])
+        y = target_loader.collate_fn([y])
 
         if time_logging:
             time_a = datetime.datetime.now()
 
-        grad_z_vec = grad_z(z, t, model, gpu=gpu)
+        grad_z_vec = grad_z(x, y, model, gpu=gpu)
 
         if time_logging:
             time_b = datetime.datetime.now()
@@ -340,7 +336,7 @@ def calc_influence_single(
             )
         with torch.no_grad():
             tmp_influence = (
-                -sum(
+                sum(
                     [
                         ####################
                         # TODO: potential bottle neck, takes 17% execution time
@@ -362,7 +358,7 @@ def calc_influence_single(
     harmful = np.argsort(influences)
     helpful = harmful[::-1]
 
-    return influences, harmful.tolist(), helpful.tolist(), test_id_num
+    return influences, harmful.tolist(), helpful.tolist()
 
 
 def get_dataset_sample_ids_per_class(class_id, num_samples, test_loader, start_index=0):
@@ -423,12 +419,15 @@ def get_dataset_sample_ids(num_samples, test_loader, num_classes=None, start_ind
     return sample_dict, sample_list
 
 
-def calc_img_wise(config, model, train_loader, test_loader, loss_func="cross_entropy"):
+def calc_img_wise(config, model, train_loader, target_loader):
     """Calculates the influence function one test point at a time. Calculates
     the `s_test` and `grad_z` values on the fly and discards them afterwards.
 
     Arguments:
-        config: dict, contains the configuration from cli params"""    
+        config: dict, contains the configuration from cli params
+        model: pytorch model
+        train_loader: dataloader, loads data points to learn Hessian on (usually train data)
+        target_loader: dataloader, loads data points to calculate influence towards"""
     influences_meta = copy.deepcopy(config)
     test_sample_num = config["test_sample_num"]
     test_start_index = config["test_start_index"]
@@ -442,10 +441,10 @@ def calc_img_wise(config, model, train_loader, test_loader, loss_func="cross_ent
     if test_sample_num and test_start_index is not False:
         test_dataset_iter_len = test_sample_num * config["num_classes"]
         _, sample_list = get_dataset_sample_ids(
-            test_sample_num, test_loader, config["num_classes"], test_start_index)
+            test_sample_num, target_loader, config["num_classes"], test_start_index)
         influences_meta["test_sample_index_list"] = sample_list
     else:
-        test_dataset_iter_len = len(test_loader.dataset)
+        test_dataset_iter_len = len(target_loader.dataset)
 
     # Set up logging and save the metadata conf file
     logging.info(f"Running on: {test_sample_num} images per class.")
@@ -473,17 +472,20 @@ def calc_img_wise(config, model, train_loader, test_loader, loss_func="cross_ent
             i = j
 
         start_time = time.time()
-        influence, harmful, helpful, _ = calc_influence_single(
+        x_infl, y_infl = target_loader.dataset[i]
+        x_infl = target_loader.collate_fn([x_infl])
+        y_infl = target_loader.collate_fn([y_infl])
+        influence, harmful, helpful = calc_influence_single(
             model,
             train_loader,
-            test_loader,
-            test_id_num=i,
+            target_loader,
+            x_infl,
+            y_infl,
             gpu=config["gpu"],
             recursion_depth=config["recursion_depth"],
             r=config["r_averaging"],
             damp=config['damp'],
-            scale=config['scale'],
-            loss_func=loss_func,
+            scale=config['scale']
         )
         end_time = time.time()
 
@@ -491,8 +493,8 @@ def calc_img_wise(config, model, train_loader, test_loader, loss_func="cross_ent
         # Different from `influence` above
         ###########
         influences[str(i)] = {}
-        _, label = test_loader.dataset[i]
-        influences[str(i)]["label"] = label
+        _, label = target_loader.dataset[i]
+        influences[str(i)]["label"] = int(label.numpy())
         influences[str(i)]["num_in_dataset"] = j
         influences[str(i)]["time_calc_influence_s"] = end_time - start_time
         infl = [x.cpu().numpy().tolist() for x in influence]

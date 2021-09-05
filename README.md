@@ -1,9 +1,10 @@
 # Influence Functions for PyTorch
 
-This is a PyTorch reimplementation of Influence Functions from the ICML2017 best paper:
+This is a stable PyTorch reimplementation of Influence Functions from the ICML2017 best paper:
 [Understanding Black-box Predictions via Influence Functions](https://arxiv.org/abs/1703.04730) by Pang Wei Koh and Percy Liang.
 The reference implementation can be found here: [link](https://github.com/kohpangwei/influence-release).
 
+- [Changes to nimarb's Implementation](#changes-to-nimarbs-implementation)
 - [Why Use Influence Functions?](#why-use-influence-functions)
 - [Requirements](#requirements)
 - [Installation](#installation)
@@ -17,6 +18,15 @@ The reference implementation can be found here: [link](https://github.com/kohpan
     - [Influences](#influences)
     - [Harmful](#harmful)
     - [Helpful](#helpful)
+  - [Note on Batch-wise Processing](#note-on-batch-wise-processing)
+
+## Changes to nimarb's Implementation
+This repo extends [nimarb's implementation](https://github.com/nimarb/pytorch_influence_functions) in two ways:
+  1. Add bugfixes, unit tests, and paper result recreations from 
+[ajsanjoaquin](https://github.com/ajsanjoaquin/pytorch_influence_functions) and
+[lazycal](https://github.com/lazycal/pytorch_influence_functions)
+  2. Allow not only to compute the influence of all training points on one test point, 
+but for arbitrary points on arbitrary points (e.g., influence of one training point on all test points)
 
 ## Why Use Influence Functions?
 
@@ -45,13 +55,7 @@ To run the tests, further requirements are:
 
 ## Installation
 
-You can either install this package directly through pip:
-
-```bash
-pip3 install --user pytorch-influence-functions
-```
-
-Or you can clone the repo and 
+You can clone the repo and 
 
 * import it as a package after it's in your `PATH`.
 * install it using `python setup.py install`
@@ -74,13 +78,26 @@ trainloader, testloader = get_my_dataloaders()
 ptif.init_logging()
 config = ptif.get_default_config()
 
+# Calculate for one test point per class which training points influenced them
 influences, harmful, helpful = ptif.calc_img_wise(config, model, trainloader, testloader)
 
-# do someting with influences/harmful/helpful
+# Results are saved in the outdir as json
 ```
 
 Here, `config` contains default values for the influence function calculation
 which can of course be changed. For details and examples, look [here](#config).
+
+If you want more fine-grained control, you can use this:
+
+```python
+import pytorch_influence_functions.influence_functions.influence_functions as infl
+
+influences, harmful, helpful = infl.calc_influence_single(torch_model, train_loader, target_loader,
+                                                          x_from, y_from)
+```
+
+This measures the influence that the point `(x_from, y_from)` has on all points stored in `target_loader`.
+The required inverse Hessian of `torch_model` is calculated using the points in `train_loader`, which is usually the training dataset.
 
 ## Background and Documentation
 
@@ -219,3 +236,11 @@ Helpful is a list of numbers, which are the IDs of the training data samples
 ordered by helpfulness. If the influence function is calculated for multiple
 test images, the helpfulness is ordered by average helpfulness to the
 prediction outcome of the processed test samples.
+
+### Note on Batch-wise Processing
+
+To compute the influences, this implementation requires instance-level gradients. 
+Since pytorch does not allow to retrieve these in batches, we use batches of size 1.
+While this might slow computations on big datasets, it allows to use the code on arbitrary models and losses.
+The branch `parallelize` extracts batch-wise gradients using backward-hooks.
+However, it should be considered experimental as it only supports linear and conv layers, and only non-regularized models.

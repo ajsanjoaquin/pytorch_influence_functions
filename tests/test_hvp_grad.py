@@ -7,7 +7,6 @@ import unittest
 import numpy as np
 
 from pytorch_influence_functions.influence_functions.hvp_grad import (
-    calc_loss,
     s_test_sample,
     grad_z,
     s_test_cg,
@@ -38,7 +37,10 @@ class TestIHVPGrad(TestCase):
 
         cls.n_params = cls.n_classes * cls.n_features + cls.n_features
 
-        cls.model = LogisticRegression(cls.n_classes, cls.n_features)
+        # Use l2 regularization since SklearnLogReg down below uses it, too
+        # (loss functions need to be aligned)
+        cls.wd = wd = 1e-2
+        cls.model = LogisticRegression(cls.n_classes, cls.n_features, wd=cls.wd)
 
         gpus = 1 if torch.cuda.is_available() else 0
         
@@ -105,7 +107,7 @@ class TestIHVPGrad(TestCase):
                 split_params = tensor_to_tuple(flat_params_, params)
                 load_weights(cls.model, names, split_params)
                 out = cls.model(x_train)
-                loss = calc_loss(out, y_train)
+                loss = cls.model.loss(out, y_train)
                 return loss
 
             batch_h = hessian(f, flat_params, strict=True)
@@ -175,7 +177,13 @@ class TestIHVPGrad(TestCase):
         print(f"L-2 difference: {l_2_difference}")
         print(f"L-infty difference: {l_infty_difference}")
 
-        return torch.allclose(self.real_ihvp, estimated_ihvp)
+        # Approximation will never be exact (especially not for every single entry in big tensors),
+        # so compare if average difference is ok
+        rtol = 0.5
+        is_l_2_ok = l_2_difference / torch.norm(self.real_ihvp) < rtol
+        is_l_infty_ok = l_infty_difference / torch.norm(self.real_ihvp, p=float("inf")) < rtol
+
+        return is_l_2_ok and is_l_infty_ok
 
 
 if __name__ == "__main__":
